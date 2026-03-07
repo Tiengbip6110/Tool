@@ -3987,7 +3987,7 @@ button:hover {
   <script>
 const heartsContainer = document.body;
 const imageFiles = Array.from(
-  { length: 20 },
+  { length: 12 },
   (_, i) => `img/Anh (${i + 1}).jpg`,
 );
 
@@ -4039,7 +4039,7 @@ function createFallingImage() {
         if (typeof isGifting === "undefined" || !isGifting) return;
 
         const img = document.createElement("img");
-        const randomNum = Math.floor(Math.random() * 20) + 1;
+        const randomNum = Math.floor(Math.random() * 12) + 1;
         img.src = `img/Anh (${randomNum}).jpg`;
         img.className = "falling-image";
 
