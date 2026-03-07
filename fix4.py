@@ -1,35 +1,47 @@
+import base64
+import glob
 import re
-with open("project/index.html", "r") as f:
-    html = f.read()
 
-# Replace the mangled section completely
-start = html.find('async function loadLetter()')
-end = html.find('async function loadMessages()')
+html_file = '8th3.html'
+with open(html_file, 'r', encoding='utf-8') as f:
+    html_content = f.read()
 
-if start != -1 and end != -1:
-    before = html[:start]
-    after = html[end:]
-    middle = """async function loadLetter() {
-  const letterBody = document.getElementById("letter-body");
-  const text = `Gửi người con gái anh yêu,\\n\\nNhân ngày Quốc tế Phụ nữ 8/3, anh muốn gửi đến em những lời chúc ngọt ngào nhất. Chúc em luôn xinh đẹp, rạng rỡ như những đóa hoa và luôn tràn ngập hạnh phúc bên anh.\\n\\nCảm ơn em đã luôn đồng hành và mang lại hơi ấm cho trái tim anh. Anh yêu em rất nhiều!\\n\\nChúc em một ngày 8/3 thật ý nghĩa và tràn đầy niềm vui. Mong rằng mỗi ngày trôi qua, nụ cười luôn nở trên môi em.\\n\\nMãi yêu em ❤️`;
-  letterBody.innerHTML = "";
-  let i = 0;
-  function typeWriter() {
-    if (i < text.length) {
-      if (text.charAt(i) === "\\n") {
-        letterBody.innerHTML += "<br>";
-      } else {
-        letterBody.innerHTML += text.charAt(i);
-      }
-      i++;
-      setTimeout(typeWriter, 50);
-    }
-  }
-  typeWriter();
-}
+# Use compressed images
+image_files = glob.glob('/tmp/compressed_images/*.jpg')
+image_files.sort()
 
-"""
-    html = before + middle + after
+base64_images = []
+for file in image_files:
+    with open(file, 'rb') as img_f:
+        encoded = base64.b64encode(img_f.read()).decode('utf-8')
+        base64_images.append(f'"data:image/jpeg;base64,{encoded}"')
 
-with open("project/index.html", "w") as f:
-    f.write(html)
+# We need 20 images. Duplicate the 15 images to reach 20.
+extended_images = base64_images.copy()
+while len(extended_images) < 20:
+    extended_images.append(base64_images[len(extended_images) % len(base64_images)])
+
+images_js_array = "[\n  " + ",\n  ".join(extended_images) + "\n]"
+
+html_content = re.sub(
+    r'const imageFiles\s*=\s*Array\.from\([\s\S]*?\);',
+    f'const imageFiles = {images_js_array};',
+    html_content
+)
+
+html_content = re.sub(
+    r'<img src="https://picsum.photos/350/350" alt="Pass Image">',
+    f'<img src={base64_images[0]} alt="Pass Image">',
+    html_content
+)
+
+html_content = re.sub(
+    r'img\.src = `https://gift-surprise-v2.vercel\.app/style/img/Anh \(\$\{randomNum\}\)\.jpg`;',
+    r'img.src = imageFiles[Math.floor(Math.random() * imageFiles.length)];',
+    html_content
+)
+
+with open('8th3.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print("Updated HTML with compressed images saved.")
