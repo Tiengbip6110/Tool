@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHECK FF</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b1020;
+  --border:rgba(255,255,255,0.08);
+  --primary:#7c5cff;
+  --yellow:#f5c542;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:radial-gradient(circle at top,#111a35,#070b14);
+  min-height:100vh;
+  color:#fff;
+}
+
+/* NAVBAR */
+nav{
+  position:fixed;
+  top:0;
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:18px 40px;
+  backdrop-filter:blur(10px);
+  background:rgba(0,0,0,0.35);
+  border-bottom:1px solid var(--border);
+  z-index:50;
+}
+
+.logo{
+  font-family:'Orbitron',sans-serif;
+  font-size:1.6rem;
+  cursor:pointer;
+}
+
+.logo span{color:#7c5cff}
+
+.nav-right{display:flex;gap:12px}
+
+.nav-btn{
+  padding:8px 16px;
+  border-radius:20px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,0.05);
+  cursor:pointer;
+  font-size:.9rem;
+}
+
+.nav-btn:hover{background:rgba(255,255,255,0.15)}
+
+/* SPACE CANVAS */
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:-1;
+  pointer-events:none;
+}
+
+.wrapper{
+  width:95%;
+  max-width:880px;
+  margin:120px auto 0 auto;
+}
+
+.card{
+  background:linear-gradient(145deg,#111a2f,#0c1324);
+  border-radius:28px;
+  padding:55px;
+  border:1px solid var(--border);
+  box-shadow:0 0 120px rgba(124,92,255,0.15);
+}
+
+.small-text{color:var(--primary);letter-spacing:3px;font-size:.85rem;margin-bottom:15px}
+
+h1{font-family:'Orbitron',sans-serif;font-size:2.6rem;margin-bottom:25px}
+
+p{opacity:.8;margin-bottom:30px}
+
+input{
+  width:100%;
+  padding:18px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:#0e1628;
+  color:#fff;
+  margin-bottom:25px;
+}
+
+.btn-row{display:flex;gap:20px}
+
+.btn{flex:1;padding:16px;border-radius:18px;border:none;font-weight:600;cursor:pointer}
+
+.btn-primary{background:linear-gradient(90deg,#6f5cff,#8f6bff);color:#fff}
+
+.btn-outline{background:transparent;border:1px solid var(--border);color:#fff}
+
+.notice{
+  margin-top:20px;
+  padding:18px;
+  border-radius:16px;
+  background:rgba(255,180,0,0.07);
+  border:1px solid rgba(255,180,0,0.3);
+  font-size:.85rem
+}
+
+.notice a{color:var(--yellow);text-decoration:none}
+
+.hidden{display:none}
+
+.section-title{font-size:1.3rem;margin-bottom:12px;margin-top:30px}
+
+.box{
+  background:linear-gradient(145deg,#10182b,#0d1426);
+  border-radius:22px;
+  padding:24px;
+  border:1px solid var(--border)
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:16px
+}
+
+.uid-highlight{color:var(--yellow);font-weight:700}
+
+.link-action{
+  margin-left:10px;
+  padding:6px 12px;
+  border-radius:8px;
+  font-size:.8rem;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.05);
+  color:#fff;
+  text-decoration:none;
+  cursor:pointer
+}
+
+.eye-btn{
+  width:60px;height:60px;
+  background:#2b2f3a;
+  border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+
+.eye-btn svg{width:28px;height:28px;fill:#fff}
+
+/* POPUP */
+.popup{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  backdrop-filter:blur(20px);
+  background:rgba(20,25,45,0.65);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:24px;
+  padding:28px;
+  width:92%;
+  max-width:520px;
+  transition:all .25s ease;
+  z-index:100;
+  box-shadow:0 0 40px rgba(124,92,255,0.25);
+}
+
+.popup.active{transform:translate(-50%,-50%) scale(1)}
+
+.popup-title{
+  text-align:center;
+  font-size:1.4rem;
+  margin-bottom:20px;
+  font-family:'Orbitron',sans-serif;
+}
+
+.price-grid{display:grid;gap:14px}
+
+.price-card{
+  position:relative;
+  background:rgba(20,25,45,0.7);
+  border-radius:18px;
+  padding:22px;
+  overflow:hidden;
+  animation:floatCard 4s ease-in-out infinite;
+  transition:transform .35s ease, box-shadow .35s ease;
+
+  /* gradient neon border */
+  border:1px solid transparent;
+  background-clip:padding-box;
+}
+
+/* animated neon border */
+.price-card::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius:20px;
+  background:linear-gradient(120deg,#6f5cff,#00e5ff,#6f5cff);
+  background-size:300% 300%;
+  animation:borderMove 6s linear infinite;
+  z-index:-1;
+}
+
+/* hologram shine */
+.price-card::after{
+  content:"";
+  position:absolute;
+  top:-100%;
+  left:-50%;
+  width:200%;
+  height:200%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);
+  transform:rotate(25deg);
+  animation:holoShine 6s ease-in-out infinite;
+}
+
+.price-card:hover{
+  transform:translateY(-8px) scale(1.03);
+  box-shadow:0 0 25px rgba(124,92,255,0.45),0 0 80px rgba(0,229,255,0.35);
+}
+
+@keyframes borderMove{
+0%{background-position:0% 50%}
+100%{background-position:300% 50%}
+}
+
+@keyframes holoShine{
+0%{top:-120%}
+50%{top:120%}
+100%{top:120%}
+}
+
+@keyframes floatCard{
+0%{transform:translateY(0)}
+50%{transform:translateY(-6px)}
+100%{transform:translateY(0)}
+}
+
+.price-card h3{margin-bottom:6px}
+
+.price{margin-top:8px;color:var(--yellow);font-weight:700}
+
+.close-btn{
+  position:absolute;
+  top:10px;
+  right:14px;
+  font-size:18px;
+  cursor:pointer;
+}
+/* =========================
+   MOBILE RESPONSIVE (ADD ONLY)
+   ========================= */
+
+/* Chống tràn ngang trên mobile */
+html, body { overflow-x: hidden; }
+
+/* Ảnh trong row không làm vỡ layout */
+img { max-width: 100%; height: auto; }
+
+/* Mobile layout */
+@media (max-width: 600px){
+
+  /* NAV */
+  nav{
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .logo{
+    font-size: 1.15rem;
+    white-space: nowrap;
+  }
+  .nav-right{
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .nav-btn{
+    padding: 7px 12px;
+    font-size: .85rem;
+    border-radius: 16px;
+  }
+
+  /* WRAPPER / CARD */
+  .wrapper{
+    width: 94%;
+    margin: 88px auto 0 auto; /* thấp hơn vì nav nhỏ */
+  }
+  .card{
+    padding: 22px;
+    border-radius: 18px;
+  }
+  .small-text{ font-size: .75rem; margin-bottom: 10px; }
+  h1{
+    font-size: 1.55rem;
+    line-height: 1.2;
+    margin-bottom: 14px;
+  }
+  p{ font-size: .95rem; margin-bottom: 16px; }
+
+  /* INPUT / BUTTON */
+  input{
+    padding: 14px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+    font-size: 1rem;
+  }
+  .btn-row{
+    flex-direction: column;
+    gap: 12px;
+  }
+  .btn{
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    font-size: 1rem;
+  }
+
+  /* SECTION / BOX */
+  .section-title{
+    font-size: 1.1rem;
+    margin-top: 18px;
+    margin-bottom: 10px;
+  }
+  .box{
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  /* ROW: cho phép xuống dòng + khoảng cách đẹp */
+  .row{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .row > span{
+    word-break: break-word;
+  }
+
+  /* Eye button nhỏ hơn, dễ bấm */
+  .eye-btn{
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+  }
+  .eye-btn svg{ width: 24px; height: 24px; }
+
+  /* Link action gọn hơn */
+  .link-action{
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: .85rem;
+    margin-left: 0; /* vì row xuống dòng */
+  }
+
+  /* VERIFY: ô nhập + nút không bị tràn */
+  #verifyInput{
+    width: 100% !important;
+    min-width: 0;
+  }
+  /* div chứa verifyInput + button đang inline style, ta fix bằng selector chung */
+  .box div[style*="display:flex"][style*="gap:8px"]{
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .box div[style*="display:flex"][style*="gap:8px"] button{
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* POPUP (Bảng giá / các popup khác) */
+  .popup{
+    width: 92%;
+    max-width: 92%;
+    padding: 18px;
+    border-radius: 18px;
+  }
+  .popup-title{ font-size: 1.2rem; margin-bottom: 14px; }
+
+  /* Price card gọn hơn */
+  .price-card{
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .price-card h3{ font-size: 1.05rem; }
+  .price-card ul{ padding-left: 18px; }
+  .price{ font-size: 1.05rem; }
+
+  /* Notice gọn hơn */
+  .notice{
+    padding: 14px;
+    border-radius: 14px;
+    font-size: .85rem;
+  }
+}
+
+/* Tablet nhỏ */
+@media (min-width: 601px) and (max-width: 900px){
+  nav{ padding: 14px 18px; }
+  .wrapper{ margin: 105px auto 0 auto; }
+  .card{ padding: 34px; border-radius: 22px; }
+  h1{ font-size: 2rem; }
+  .btn-row{ gap: 14px; }
+}
+
+/* Tối ưu thao tác chạm */
+@media (pointer: coarse){
+  .nav-btn, .btn, .link-action, .eye-btn{ -webkit-tap-highlight-color: transparent; }
+}
+/* === PERMISSION POPUP (ADD ONLY) === */
+#permissionOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.35);
+  backdrop-filter:blur(10px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease;
+  z-index:99;
+}
+
+#permissionOverlay.active{
+  opacity:1;
+  pointer-events:auto;
+}
+
+#permissionPopup{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(0.92);
+  opacity:0;
+  pointer-events:none;
+  width:92%;
+  max-width:560px;
+  padding:28px 26px;
+  border-radius:24px;
+  backdrop-filter:blur(20px);
+  background:rgba(20,25,45,0.55);
+  border:1px solid rgba(255,255,255,0.14);
+  box-shadow:0 0 45px rgba(124,92,255,0.25);
+  transition:all .25s ease;
+  z-index:100;
+}
+
+#permissionPopup.active{
+  opacity:1;
+  pointer-events:auto;
+  transform:translate(-50%,-50%) scale(1);
+}
+
+#permissionPopup .permission-close{
+  position:absolute;
+  top:10px;
+  right:14px;
+  font-size:18px;
+  cursor:pointer;
+  opacity:.9;
+}
+
+#permissionPopup .permission-title{
+  text-align:center;
+  font-family:'Orbitron',sans-serif;
+  font-size:2rem;
+  letter-spacing:1px;
+  margin-bottom:10px;
+}
+
+#permissionPopup .permission-sub{
+  text-align:center;
+  font-size:1.05rem;
+  font-weight:700;
+  opacity:.95;
+  margin-bottom:14px;
+}
+
+#permissionPopup .permission-blink{
+  text-align:center;
+  margin:10px 0 18px 0;
+  font-weight:800;
+  color:var(--yellow);
+  letter-spacing:.5px;
+  animation:permissionBlink 1s infinite;
+}
+
+@keyframes permissionBlink{
+  0%,49%{opacity:1}
+  50%,100%{opacity:.25}
+}
+
+#permissionPopup .permission-actions{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  margin-bottom:18px;
+}
+
+#permissionPopup .zalo-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 16px;
+  border-radius:14px;
+  color:#fff;
+  font-weight:700;
+  text-decoration:none;
+  background:#06c755;
+  box-shadow:0 0 12px rgba(6,199,85,0.55);
+  border:1px solid rgba(255,255,255,0.18);
+}
+
+#permissionPopup .zalo-btn img{
+  width:22px;
+  height:22px;
+}
+
+#permissionPopup .permission-label{
+  font-weight:700;
+  margin-bottom:10px;
+  display:block;
+  text-align:center;
+  opacity:.95;
+}
+
+#permissionPopup .key-row{
+  display:flex;
+  gap:10px;
+}
+
+#permissionPopup .key-row input{
+  flex:1;
+  padding:14px 14px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(14,22,40,0.75);
+  color:#fff;
+  margin:0;
+}
+
+#permissionPopup .key-row button{
+  padding:14px 16px;
+  border-radius:14px;
+  border:none;
+  cursor:pointer;
+  font-weight:800;
+  background:linear-gradient(90deg,#6f5cff,#8f6bff);
+  color:#fff;
+}
+
+#permissionPopup .permission-hint{
+  margin-top:12px;
+  font-size:.85rem;
+  opacity:.75;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+
+<canvas id="space"></canvas>
+
+<nav>
+  <div class="logo" onclick="location.reload()">CHECK <span>FF</span></div>
+  <div class="nav-right">
+    <div class="nav-btn">Tiếng Việt</div>
+    <div class="nav-btn" onclick="openPrice()">Bảng Giá</div>
+    <div class="nav-btn" onclick="openAuth()">Tài khoản</div>
+  </div>
+</nav>
+
+<div class="wrapper">
+
+<div class="card" id="page1">
+  <div class="small-text">CHECK FF</div>
+  <h1>CHECK THÔNG TIN ACC</h1>
+  <p>Dịch vụ tra cứu thông tin tài khoản nhanh chóng, đầy đủ và bảo mật.</p>
+
+  <input type="text" id="uidInput" placeholder="Nhập ACCESS UID / IDGAME" maxlength="12">
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="checkUID()">CHECK</button>
+    <button class="btn btn-outline" onclick="window.open('https://zalo.me/0335775073','_blank')">HƯỚNG DẪN</button>
+  </div>
+
+  <div class="notice">
+    LƯU Ý: Trang web được tạo ra với mục đích tra cứu thông tin tài khoản.
+    Mọi thắc mắc vui lòng liên hệ admin <a href="https://zalo.me/0335775073" target="_blank">tại đây</a>.
+  </div>
+</div>
+
+<div class="card hidden" id="page2">
+
+<h1>ĐÃ ĐĂNG NHẬP THÀNH CÔNG UID/<span id="uidShow" class="uid-highlight"></span></h1>
+
+<div class="section-title">Mail xác thực</div>
+<div class="box">
+<div class="row">
+<span>*******@g****.com</span>
+<div class="eye-btn" onclick="alertPermission('revealEmail()')">
+<svg viewBox="0 0 24 24"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+</div>
+</div>
+<div class="row">Mã bảo mật: ******</div>
+</div>
+
+<div class="section-title">Liên kết</div>
+<div class="box">
+
+<div class="row">
+<span style="display:flex;align-items:center;gap:10px">
+<img src="https://cdn-icons-png.flaticon.com/512/281/281764.png" width="20"> Google
+</span>
+<span>****** <a class="link-action" href="https://mail.google.com/mail/u/0/" target="_blank">Thay Liên Kết</a></span>
+</div>
+
+<div class="row">
+<span style="display:flex;align-items:center;gap:10px">
+<img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" width="20"> Facebook
+</span>
+<span>****** <a class="link-action" href="https://www.facebook.com/?locale=vi_VN" target="_blank">Thay Liên Kết</a></span>
+</div>
+
+<div class="row">
+<span style="display:flex;align-items:center;gap:10px">
+<img src="https://cdn-icons-png.flaticon.com/512/5968/5968830.png" width="20"> Twitter (X)
+</span>
+<span>****** <a class="link-action" href="https://x.com/" target="_blank">Thay Liên Kết</a></span>
+</div>
+
+<div class="row">
+<span style="display:flex;align-items:center;gap:10px">
+<img src="https://cdn-icons-png.flaticon.com/512/145/145813.png" width="20"> VKontakte
+</span>
+<span>****** <a class="link-action" href="https://vk.com/" target="_blank">Thay Liên Kết</a></span>
+</div>
+
+</div>
+
+<div class="section-title">Công Cụ</div>
+<div class="box">
+
+<div class="row">
+<span>Spam Login</span>
+<button class="link-action" onclick="alertPermission('startSpam()')">Bắt đầu</button>
+</div>
+
+<div class="notice">
+ĐÂY LÀ CHỨC NĂNG SPAM LOGIN ĐỂ TRÁNH TÌNH TRẠNG LOGIN HACK, VUI LÒNG SỬ DỤNG HỢP LÝ ĐỂ TRÁNH BỊ KHOÁ VĨNH VIỄN
+</div>
+
+<div class="row" style="margin-top:20px">
+<span>GỬI MÃ XÁC THỰC</span>
+<div style="display:flex;gap:8px">
+<input id="verifyInput" placeholder="Nhập mail mới của bạn" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:#0e1628;color:#fff;width:200px">
+<button id="verifyBtn" class="link-action" onclick="handleVerify()">Gửi mã</button>
+</div>
+</div>
+
+<div class="notice">
+MÃ XÁC THỰC SẼ ĐƯỢC GỬI TỚI MAIL CỦA BẠN. HIỆU LỰC CỦA MÃ (<span id="timer">05:00</span>)
+</div>
+
+</div>
+
+</div>
+</div>
+
+<div class="popup" id="pricePopup">
+<div class="close-btn" onclick="closePrice()">✕</div>
+<div class="popup-title">Bảng Giá</div>
+
+<div class="price-grid">
+
+<div class="price-card">
+<h3>🚀 FULL CHỨC NĂNG</h3>
+<ul>
+<li>📧 <b>Check MXT & LK</b></li>
+<li>• Tra cứu mail xác thực</li>
+<li>• Tra cứu liên kết ẩn</li>
+<li>• Hỗ trợ 24/7</li>
+<br>
+<li>🔓 <b>Gỡ & Gắn MXT</b></li>
+<li>• Gỡ MXT nhanh chóng</li>
+<li>• Không cần log acc</li>
+<li>• Hỗ trợ 24/7</li>
+<br>
+<li>⚡ <b>Spam Login</b></li>
+<li>• Spam đăng nhập liên tục</li>
+<li>• Ngăn người khác login</li>
+<li>• Dashboard quản lý</li>
+</ul>
+<div class="price">150.000đ</div>
+
+<div style="margin-top:15px;text-align:center">
+<a href="https://zalo.me/0335775073" target="_blank" style="display:inline-flex;align-items:center;gap:10px;background:#06c755;padding:10px 18px;border-radius:14px;color:#fff;font-weight:600;text-decoration:none;box-shadow:0 0 12px rgba(6,199,85,0.6)">
+<img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" width="22"> MUA NGAY / LIÊN HỆ
+</a>
+</div>
+
+</div>
+
+</div>
+</div>
+
+<script>
+
+function checkUID(){
+const uid=document.getElementById('uidInput').value.trim()
+
+if(!/^\d{8,12}$/.test(uid)){
+alert('Tài Khoản không tồn tại')
+return
+}
+
+document.getElementById('page1').classList.add('hidden')
+document.getElementById('page2').classList.remove('hidden')
+
+document.getElementById('uidShow').innerText=uid
+}
+
+function alertPermission(){
+ document.getElementById('permissionPopup').classList.add('active')
+}
+
+function closePermission(){
+ document.getElementById('permissionPopup').classList.remove('active')
+}
+
+function openPrice(){
+document.getElementById('pricePopup').classList.add('active')
+}
+
+function closePrice(){
+document.getElementById('pricePopup').classList.remove('active')
+}
+
+/* VERIFY MAIL */
+let verifyStep=0
+let timer=300
+let interval
+
+function handleVerify(){
+const input=document.getElementById('verifyInput')
+const btn=document.getElementById('verifyBtn')
+
+if(verifyStep===0){
+
+if(!input.value){
+alert('Vui lòng nhập mail')
+return
+}
+
+alert('Mã xác thực đã được gửi')
+
+input.value=''
+input.placeholder='Nhập mã xác thực'
+btn.innerText='Xác nhận'
+
+verifyStep=1
+startTimer()
+
+}else{
+
+if(input.value.length!==6){
+alert('Mã không hợp lệ')
+return
+}
+
+alert('Xác thực thành công')
+
+}
+}
+
+function startTimer(){
+
+const el=document.getElementById('timer')
+
+clearInterval(interval)
+
+interval=setInterval(()=>{
+
+if(timer<=0){
+clearInterval(interval)
+el.innerText='00:00'
+return
+}
+
+timer--
+
+let m=Math.floor(timer/60)
+let s=timer%60
+
+el.innerText=
+String(m).padStart(2,'0')+
+':' +
+String(s).padStart(2,'0')
+
+},1000)
+
+}
+
+/* PARTICLE NETWORK BACKGROUND */
+const canvas=document.getElementById('space')
+const ctx=canvas.getContext('2d')
+
+function resize(){
+canvas.width=window.innerWidth
+canvas.height=window.innerHeight
+}
+resize()
+window.addEventListener('resize',resize)
+
+let mouse={x:canvas.width/2,y:canvas.height/2}
+
+document.addEventListener('mousemove',e=>{
+mouse.x=e.clientX
+mouse.y=e.clientY
+})
+
+class Particle{
+constructor(){this.reset()}
+
+reset(){
+this.x=Math.random()*canvas.width
+this.y=Math.random()*canvas.height
+this.vx=(Math.random()-0.5)*0.5
+this.vy=(Math.random()-0.5)*0.5
+this.size=Math.random()*2+1
+}
+
+update(){
+this.x+=this.vx
+this.y+=this.vy
+
+const dx=this.x-mouse.x
+const dy=this.y-mouse.y
+const dist=Math.sqrt(dx*dx+dy*dy)
+
+if(dist<120){
+this.x+=dx*0.05
+this.y+=dy*0.05
+}
+
+if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height){
+this.reset()
+}
+}
+
+ draw(){
+ ctx.beginPath()
+ ctx.arc(this.x,this.y,this.size,0,Math.PI*2)
+ ctx.fillStyle='white'
+ ctx.fill()
+ }
+}
+
+let particles=[]
+for(let i=0;i<180;i++)particles.push(new Particle())
+
+function drawLinks(){
+for(let a=0;a<particles.length;a++){
+for(let b=a+1;b<particles.length;b++){
+const dx=particles[a].x-particles[b].x
+const dy=particles[a].y-particles[b].y
+const dist=Math.sqrt(dx*dx+dy*dy)
+
+if(dist<120){
+ctx.strokeStyle=`rgba(255,255,255,${1-dist/120})`
+ctx.lineWidth=0.6
+ctx.beginPath()
+ctx.moveTo(particles[a].x,particles[a].y)
+ctx.lineTo(particles[b].x,particles[b].y)
+ctx.stroke()
+}
+}
+}
+}
+
+function animate(){
+ctx.fillStyle='rgba(5,8,20,0.55)'
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+particles.forEach(p=>{
+p.update()
+p.draw()
+})
+
+drawLinks()
+
+requestAnimationFrame(animate)
+}
+
+animate()
+/* === PERMISSION POPUP JS (ADD ONLY) === */
+(function(){
+  // trạng thái mở khóa
+  window.isKeyUnlocked = false;
+
+  window.alertPermission = function(callbackStr){
+    if(window.isKeyUnlocked) {
+      if(callbackStr) {
+        if(callbackStr === 'revealEmail()') window.revealEmail();
+        if(callbackStr === 'startSpam()') window.startSpam();
+      }
+      return;
+    }
+
+    window.currentActionCallback = callbackStr;
+    var p = document.getElementById('permissionPopup');
+    var o = document.getElementById('permissionOverlay');
+    if(p) p.classList.add('active');
+    if(o) o.classList.add('active');
+  };
+
+  window.closePermission = function(){
+    var p = document.getElementById('permissionPopup');
+    var o = document.getElementById('permissionOverlay');
+    if(p) p.classList.remove('active');
+    if(o) o.classList.remove('active');
+
+    var hint = document.getElementById('keyHint');
+    if(hint) hint.innerText = '';
+  };
+
+  window.submitKey = function(){
+    var keyEl = document.getElementById('keyInput');
+    var hint = document.getElementById('keyHint');
+    var key = keyEl ? keyEl.value.trim() : '';
+
+    if(!hint) return;
+
+    if(!key){
+      hint.innerText = 'Vui lòng nhập key.';
+      return;
+    }
+
+    // demo key (bạn đổi key thật sau)
+    if(key === 'TIENG6110'){
+      hint.innerText = 'Key hợp lệ ✅';
+      window.isKeyUnlocked = true;
+      var cb = window.currentActionCallback;
+      window.closePermission();
+      if(cb) {
+        if(cb === 'revealEmail()') window.revealEmail();
+        if(cb === 'startSpam()') window.startSpam();
+      }
+    }else{
+      hint.innerText = 'NOT KEY !';
+    }
+  };
+
+  window.revealEmail = function() {
+    var emailSpan = document.querySelector('.box .row span');
+    if(emailSpan && emailSpan.innerText.includes('***')) {
+      emailSpan.innerText = 'demo.account@gmail.com'; // mock data
+    }
+  };
+
+  window.startSpam = function() {
+    alert('Đang chạy chức năng Spam Login...');
+    var btn = document.querySelector('.link-action');
+    if(btn) {
+      btn.innerText = 'Đang Spam...';
+      btn.style.opacity = '0.5';
+    }
+  };
+
+  // ESC để đóng
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') window.closePermission();
+  });
+})();
+</script>
+<!-- === PERMISSION POPUP (ADD ONLY) === -->
+<div id="permissionOverlay" onclick="closePermission()"></div>
+
+<div id="permissionPopup">
+  <div class="permission-close" onclick="closePermission()">✕</div>
+
+  <div class="permission-title">NOT KEY !</div>
+  <div class="permission-sub">Bạn không có quyền sử dụng chức năng</div>
+
+  <div class="permission-blink">➡ CHỈ VỚI 150K BẠN ĐÃ DÙNG FULL CHỨC NĂNG</div>
+
+  <div class="permission-actions">
+    <a class="zalo-btn" href="https://zalo.me/0335775073/" target="_blank" rel="noopener">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" alt="Zalo">
+      Liên Hệ
+    </a>
+  </div>
+
+  <div class="permission-form">
+    <span class="permission-label">Vui Lòng Nhập Key</span>
+    <div class="key-row">
+      <input id="keyInput" type="text" placeholder="Nhập key của bạn">
+      <button onclick="submitKey()">Xác nhận</button>
+    </div>
+    <div class="permission-hint" id="keyHint"></div>
+  </div>
+</div>
+</body>
+</html>
