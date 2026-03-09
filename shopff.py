@@ -979,9 +979,15 @@ animate()
     }
   };
 
-  // ESC để đóng
+  // Lắng nghe sự kiện phím
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape') window.closePermission();
+    if(e.key === 'Enter') {
+      var p = document.getElementById('permissionPopup');
+      if(p && p.classList.contains('active')) {
+        window.submitKey();
+      }
+    }
   });
 })();
 </script>
