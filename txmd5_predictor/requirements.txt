@@ -2,5 +2,8 @@ requests
 aiohttp
 numpy
 scikit-learn
-telethon
 python-dotenv
+python-telegram-bot
+google-genai
+openai
+anthropic

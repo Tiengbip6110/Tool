@@ -2,12 +2,12 @@ import asyncio
 import aiohttp
 import logging
 import os
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 
-from algorithms import Predictor, FrequencyAnalysis, MarkovChain, PatternMatching, InversePattern
-from telegram_reporter import TelegramReporter
+from algorithms import FrequencyAnalysis, MarkovChain, PatternMatching, InversePattern
+from ai_analyzer import GeminiPredictor, ChatGPTPredictor, ClaudePredictor, GrokPredictor, DeepSeekPredictor
+from bot_handler import TelegramBotHandler
 
 # Load biến môi trường
 load_dotenv()
@@ -20,14 +20,19 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
     logging.warning("TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID chưa được cấu hình trong .env!")
+
 API_URL = "https://wtxmd52.tele68.com/v1/txmd5/sessions"
 
 class MainApp:
     def __init__(self):
-        self.reporter = TelegramReporter(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+        self.bot_handler = TelegramBotHandler(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+        self.bot_handler.get_report_callback = self.generate_report_text
+
         self.history = []
         self.last_session_id = None
-        self.algorithms = [
+
+        # Danh sách thuật toán logic cổ điển
+        self.logic_algorithms = [
             FrequencyAnalysis(10),
             FrequencyAnalysis(50),
             MarkovChain(1),
@@ -35,6 +40,17 @@ class MainApp:
             PatternMatching(5),
             InversePattern(15)
         ]
+
+        # Danh sách AI Algorithms
+        self.ai_algorithms = []
+        if os.getenv("GEMINI_API_KEY"): self.ai_algorithms.append(GeminiPredictor())
+        if os.getenv("OPENAI_API_KEY"): self.ai_algorithms.append(ChatGPTPredictor())
+        if os.getenv("CLAUDE_API_KEY"): self.ai_algorithms.append(ClaudePredictor())
+        if os.getenv("GROK_API_KEY"): self.ai_algorithms.append(GrokPredictor())
+        if os.getenv("DEEPSEEK_API_KEY"): self.ai_algorithms.append(DeepSeekPredictor())
+
+        self.algorithms = self.logic_algorithms + self.ai_algorithms
+
         self.report_interval_hours = 1
         self.last_report_time = datetime.now()
 
@@ -63,7 +79,15 @@ class MainApp:
 
         return "UNKNOWN"
 
-    def process_new_session(self, session_data: dict):
+    async def async_process_ai_predictions(self):
+        """Khởi chạy bất đồng bộ gọi API tới các AI model"""
+        tasks = []
+        for ai in self.ai_algorithms:
+            tasks.append(ai.async_predict(self.history))
+        if tasks:
+             await asyncio.gather(*tasks, return_exceptions=True)
+
+    def process_new_session(self, session_data: dict) -> dict:
         """Xử lý khi phát hiện phiên mới từ API."""
         new_result = self.get_result_from_dices(session_data)
 
@@ -74,9 +98,14 @@ class MainApp:
 
         if new_result == "UNKNOWN":
             logging.warning("Không thể xác định kết quả (Tài/Xỉu) từ dữ liệu API.")
-            return
+            return {}
 
-        # 1. Đánh giá dự đoán của ván trước đối với mọi thuật toán
+        # Lấy thuật toán tốt nhất ở ván HIỆN TẠI (trước khi đánh giá) để gửi báo cáo nếu cần
+        best_algo_before_eval = self.get_best_algorithm()
+        prediction_result = best_algo_before_eval.current_prediction if best_algo_before_eval else "TAI"
+        prediction_accuracy = best_algo_before_eval.get_accuracy() if best_algo_before_eval else 0
+
+        # Đánh giá dự đoán của ván trước đối với mọi thuật toán
         for algo in self.algorithms:
             if algo.current_prediction:
                 correct = (algo.current_prediction == new_result)
@@ -86,95 +115,164 @@ class MainApp:
                 logging.info(f" - {algo.name}: Dự đoán {algo.current_prediction} -> {'ĐÚNG' if correct else 'SAI'} ({algo.get_accuracy():.2f}%)")
             algo.current_prediction = None # Reset
 
-        # 2. Cập nhật lịch sử (thêm vào đầu mảng)
+        # Cập nhật lịch sử (thêm vào đầu mảng)
         self.history.insert(0, session_data)
 
-        # Giữ mảng lịch sử ở mức độ tối đa khoảng 5000 ván để tránh tràn RAM theo thời gian
+        # Giữ mảng lịch sử ở mức độ tối đa khoảng 5000 ván
         if len(self.history) > 5000:
             self.history = self.history[:5000]
 
-        # 3. Yêu cầu các thuật toán dự đoán cho ván tiếp theo
-        for algo in self.algorithms:
+        # Trả về thông tin đánh giá phiên VỪA RA để tạo mẫu gửi message
+        return {
+            "session_data": session_data,
+            "prediction_made": prediction_result,
+            "accuracy": prediction_accuracy,
+            "best_algo": best_algo_before_eval
+        }
+
+    def trigger_next_predictions(self):
+        """Yêu cầu các thuật toán logic thông thường (sync) dự đoán ván kế"""
+        for algo in self.logic_algorithms:
             prediction = algo.predict(self.history)
             algo.current_prediction = prediction
 
     def get_best_algorithm(self):
-        """Trả về thuật toán đang có tỷ lệ chính xác cao nhất và đã dự đoán ít nhất 5 ván."""
+        """Trả về thuật toán đang có tỷ lệ chính xác cao nhất (đã đoán >= 5 lần)"""
         valid_algos = [algo for algo in self.algorithms if algo.total_predictions >= 5]
         if not valid_algos:
-            return max(self.algorithms, key=lambda a: a.get_accuracy())
+             if not self.algorithms: return None
+             return max(self.algorithms, key=lambda a: a.get_accuracy())
 
         return max(valid_algos, key=lambda a: a.get_accuracy())
 
-    async def send_hourly_report(self):
-        """Gửi báo cáo tổng hợp qua Telegram."""
+    def format_predict_message(self, eval_data: dict, current_session_id: int) -> str:
+         # Xử lý thông tin ván cũ (ván vừa ra)
+         old_session = eval_data['session_data']
+         old_id = old_session.get('id', 'N/A')
+         dices = old_session.get('dices', [])
+         dice_str = "-".join(map(str, dices)) if dices else "?-?-?"
+         point = old_session.get('point', '?')
+         actual_res = old_session.get('calculated_result', 'N/A')
+
+         # Kết quả dự đoán ở phiên cũ của thuật toán xịn nhất
+         pred = eval_data['prediction_made']
+         algo = eval_data['best_algo']
+
+         is_correct = "True ✅" if pred == actual_res else "False ❌"
+
+         # Xử lý thông tin ván hiện tại (ván đang dự đoán)
+         # Lấy the best algorithm AFTER updates and predictions for the new session
+         best_algo_now = self.get_best_algorithm()
+         next_pred = best_algo_now.current_prediction if best_algo_now and best_algo_now.current_prediction else "Đang phân tích..."
+         acc_ratio = f"{best_algo_now.get_accuracy():.0f}%" if best_algo_now else "0%"
+         algo_name = best_algo_now.name if best_algo_now else "N/A"
+
+         total_acc = best_algo_now.correct_predictions if best_algo_now else 0
+         total_sess = best_algo_now.total_predictions if best_algo_now else 0
+
+         msg = (
+             "🔮 *ADVANCED SIC BO MODEL* 🔮\n"
+             f"SESSION OLD 🧩: #{old_id}\n"
+             f"Dice 🎲: {dice_str} = {point} | {actual_res}🎯\n"
+             f"Result: {is_correct} (Bởi: {algo.name if algo else 'Default'})\n\n"
+             "————————————————————————\n\n"
+             f"CURRENT SESSION 🧩: #{current_session_id}\n"
+             f"Verdict 🎯: {next_pred} | Accuracy Ratio: {acc_ratio} 🔥 (Bởi: {algo_name})\n\n"
+             f"Total Sessions: {total_sess} sessions | Sum Accuracy 📃: {total_acc}/{total_sess} | Accuracy Rate: {acc_ratio} 💎"
+         )
+         return msg
+
+    def generate_report_text(self) -> str:
+        """Tạo báo cáo chi tiết cho lệnh /report"""
         best_algo = self.get_best_algorithm()
+        total_tracked = len(self.history)
 
-        report = f"📊 *BÁO CÁO DỰ ĐOÁN TXMD5 MỖI GIỜ* 📊\n\n"
-        report += f"⏱ Thời gian: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n"
-        report += f"🎲 Tổng số phiên đã theo dõi: `{len(self.history)}`\n\n"
+        report = f"📊 *BÁO CÁO HỆ THỐNG AI & LOGIC* 📊\n"
+        report += f"🎲 Tổng số phiên đã lưu: `{total_tracked}`\n\n"
 
-        report += f"🏆 *Thuật toán tốt nhất hiện tại:*\n"
-        report += f"   Tên: `{best_algo.name}`\n"
-        report += f"   Độ chính xác: `{best_algo.get_accuracy():.2f}%` ({best_algo.correct_predictions}/{best_algo.total_predictions})\n"
-        report += f"   Dự đoán ván tiếp theo ({self.last_session_id + 1 if self.last_session_id else 'N/A'}): `{best_algo.current_prediction}`\n\n"
+        if best_algo:
+             report += f"🏆 *Mô hình tốt nhất:*\n"
+             report += f"   Tên: `{best_algo.name}`\n"
+             report += f"   Chính xác: `{best_algo.get_accuracy():.2f}%` ({best_algo.correct_predictions}/{best_algo.total_predictions})\n"
+             report += f"   Dự đoán ván kế ({self.last_session_id + 1 if self.last_session_id else 'N/A'}): `{best_algo.current_prediction}`\n\n"
 
-        report += f"📉 *Hiệu suất các thuật toán khác:*\n"
+        report += f"📉 *Chi tiết các mô hình khác:*\n"
         for algo in sorted(self.algorithms, key=lambda a: a.get_accuracy(), reverse=True):
-            if algo.name != best_algo.name:
-                report += f" - {algo.name}: {algo.get_accuracy():.2f}% ({algo.correct_predictions}/{algo.total_predictions})\n"
+             report += f" - {algo.name}: {algo.get_accuracy():.2f}% ({algo.correct_predictions}/{algo.total_predictions})\n"
 
-        await self.reporter.send_message(report)
+        report += f"\n⚙️ Trạng thái Thu thập: {'🟢 Chạy' if self.bot_handler.is_collecting else '🔴 Dừng'}\n"
+        report += f"⚙️ Trạng thái Tự Động Gửi Dự đoán: {'🟢 Bật' if self.bot_handler.is_predicting else '🔴 Tắt'}"
+        return report
 
     async def run(self):
-        logging.info("Bắt đầu khởi chạy hệ thống theo dõi TXMD5...")
+        logging.info("Bắt đầu khởi chạy hệ thống...")
 
-        # Khởi tạo phiên lấy dữ liệu 1 lần đầu để lấy lịch sử
-        async with aiohttp.ClientSession() as session:
-            initial_data = await self.fetch_data(session)
-            if initial_data and 'data' in initial_data:
-                 # API trả về mảng 'data' với [0] là mới nhất
-                 self.history = initial_data['data']
-                 if self.history:
-                     self.last_session_id = self.history[0]['id']
-                     logging.info(f"Đã tải {len(self.history)} phiên lịch sử. Phiên mới nhất: {self.last_session_id}")
+        # Khởi động Telegram Bot (chạy nền)
+        await self.bot_handler.start_bot()
 
-                     # Khởi tạo dự đoán ban đầu
-                     for algo in self.algorithms:
-                          algo.predict(self.history)
+        # Gửi tin nhắn khởi động
+        await self.bot_handler.send_message("🚀 *Khởi động lại Server!* Gõ `/help` để xem menu điều khiển.")
 
-            # Gửi tin nhắn bắt đầu
-            await self.reporter.send_message("🚀 *Hệ thống AI theo dõi TXMD5 đã khởi động!* 🚀\nĐang thu thập dữ liệu và chạy mô phỏng thuật toán...")
+        try:
+             async with aiohttp.ClientSession() as session:
+                 # Khởi tạo dữ liệu
+                 initial_data = await self.fetch_data(session)
+                 if initial_data and 'data' in initial_data:
+                      self.history = initial_data['data']
+                      if self.history:
+                          self.last_session_id = self.history[0]['id']
+                          logging.info(f"Đã tải {len(self.history)} phiên. Mới nhất: {self.last_session_id}")
+                          self.trigger_next_predictions()
+                          asyncio.create_task(self.async_process_ai_predictions())
 
-            # Vòng lặp chính mỗi 500ms
-            while True:
-                try:
-                    data = await self.fetch_data(session)
-                    if data and 'data' in data and data['data']:
-                        latest_session = data['data'][0]
-                        current_id = latest_session['id']
+                 while True:
+                     # Chỉ gọi API và phân tích nếu cờ is_collecting bật
+                     if self.bot_handler.is_collecting:
+                         data = await self.fetch_data(session)
+                         if data and 'data' in data and data['data']:
+                             latest_session = data['data'][0]
+                             current_id = latest_session['id']
 
-                        if self.last_session_id is None:
-                            self.last_session_id = current_id
-                        elif current_id > self.last_session_id:
-                            # Có phiên mới
-                            self.process_new_session(latest_session)
-                            self.last_session_id = current_id
+                             if self.last_session_id is None:
+                                 self.last_session_id = current_id
 
-                    # Kiểm tra gửi báo cáo hàng giờ
-                    now = datetime.now()
-                    if (now - self.last_report_time).total_seconds() >= self.report_interval_hours * 3600:
-                         await self.send_hourly_report()
-                         self.last_report_time = now
+                             elif current_id > self.last_session_id:
+                                 # 1. Đánh giá và cập nhật phiên MỚI RA (Vừa kết thúc)
+                                 eval_data = self.process_new_session(latest_session)
 
-                except Exception as e:
-                    logging.error(f"Lỗi trong vòng lặp chính: {e}")
+                                 # 2. Tạo dự đoán cho ván KẾ TIẾP (Session hiện tại)
+                                 self.last_session_id = current_id
+                                 next_session_id = current_id + 1
 
-                await asyncio.sleep(0.5)
+                                 # Logic cổ điển (chạy ngay)
+                                 self.trigger_next_predictions()
+
+                                 # AI gọi API (chạy background không block loop chính)
+                                 asyncio.create_task(self.async_process_ai_predictions())
+
+                                 # 3. Gửi dự đoán lên Telegram nếu cờ is_predicting bật
+                                 if self.bot_handler.is_predicting and eval_data:
+                                      msg = self.format_predict_message(eval_data, next_session_id)
+                                      await self.bot_handler.send_message(msg)
+
+                         # Gửi report định kỳ hàng giờ (Chỉ khi đang thu thập)
+                         now = datetime.now()
+                         if (now - self.last_report_time).total_seconds() >= self.report_interval_hours * 3600:
+                              report_text = self.generate_report_text()
+                              await self.bot_handler.send_message(report_text)
+                              self.last_report_time = now
+
+                     await asyncio.sleep(0.5)
+
+        except Exception as e:
+             logging.error(f"Lỗi crash vòng lặp chính: {e}")
+        finally:
+             await self.bot_handler.stop_bot()
 
 if __name__ == "__main__":
     app = MainApp()
     try:
+        # Cần một event loop dài hạn, asyncio.run sẽ quản lý app.run()
         asyncio.run(app.run())
     except KeyboardInterrupt:
-        logging.info("Hệ thống đã bị dừng bởi người dùng.")
+        logging.info("Hệ thống đã dừng.")
