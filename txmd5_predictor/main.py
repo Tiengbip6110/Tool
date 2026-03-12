@@ -204,28 +204,21 @@ class MainApp:
         report += f"⚙️ Trạng thái Tự Động Gửi Dự đoán: {'🟢 Bật' if self.bot_handler.is_predicting else '🔴 Tắt'}"
         return report
 
-    async def run(self):
-        logging.info("Bắt đầu khởi chạy hệ thống...")
+    async def fetch_data_loop(self):
+         """Vòng lặp lấy dữ liệu không giới hạn, xử lý exception để luôn retry"""
+         async with aiohttp.ClientSession() as session:
+             # Khởi tạo dữ liệu
+             initial_data = await self.fetch_data(session)
+             if initial_data and 'data' in initial_data:
+                  self.history = initial_data['data']
+                  if self.history:
+                      self.last_session_id = self.history[0]['id']
+                      logging.info(f"Đã tải {len(self.history)} phiên. Mới nhất: {self.last_session_id}")
+                      self.trigger_next_predictions()
+                      asyncio.create_task(self.async_process_ai_predictions())
 
-        # Khởi động Telegram Bot (chạy nền)
-        await self.bot_handler.start_bot()
-
-        # Gửi tin nhắn khởi động
-        await self.bot_handler.send_message("🚀 *Khởi động lại Server!* Gõ `/help` để xem menu điều khiển.")
-
-        try:
-             async with aiohttp.ClientSession() as session:
-                 # Khởi tạo dữ liệu
-                 initial_data = await self.fetch_data(session)
-                 if initial_data and 'data' in initial_data:
-                      self.history = initial_data['data']
-                      if self.history:
-                          self.last_session_id = self.history[0]['id']
-                          logging.info(f"Đã tải {len(self.history)} phiên. Mới nhất: {self.last_session_id}")
-                          self.trigger_next_predictions()
-                          asyncio.create_task(self.async_process_ai_predictions())
-
-                 while True:
+             while True:
+                 try:
                      # Chỉ gọi API và phân tích nếu cờ is_collecting bật
                      if self.bot_handler.is_collecting:
                          data = await self.fetch_data(session)
@@ -262,12 +255,33 @@ class MainApp:
                               await self.bot_handler.send_message(report_text)
                               self.last_report_time = now
 
-                     await asyncio.sleep(0.5)
+                 except Exception as e:
+                     logging.error(f"Lỗi trong vòng lặp API (Sẽ tiếp tục thử lại): {e}")
 
-        except Exception as e:
-             logging.error(f"Lỗi crash vòng lặp chính: {e}")
-        finally:
-             await self.bot_handler.stop_bot()
+                 await asyncio.sleep(0.5)
+
+    async def run(self):
+        logging.info("Bắt đầu khởi chạy hệ thống...")
+
+        # Vòng lặp tái khởi động Bot + Loop chính nếu có lỗi nghiêm trọng crash luồng
+        while True:
+            try:
+                # Khởi động Telegram Bot (chạy nền)
+                await self.bot_handler.start_bot()
+
+                # Gửi tin nhắn khởi động
+                await self.bot_handler.send_message("🚀 *Khởi động Server thành công!* Gõ `/help` để xem menu điều khiển.")
+
+                # Chạy loop API (Loop này có tự xử lý error nhưng nếu lọt exception thì sẽ restart toàn bộ)
+                await self.fetch_data_loop()
+
+            except Exception as e:
+                 logging.critical(f"Lỗi NGHIÊM TRỌNG làm văng hệ thống: {e}. Đang KHỞI ĐỘNG LẠI sau 5s...")
+                 try:
+                     await self.bot_handler.stop_bot()
+                 except: pass
+                 await asyncio.sleep(5)
+
 
 if __name__ == "__main__":
     app = MainApp()
@@ -275,4 +289,7 @@ if __name__ == "__main__":
         # Cần một event loop dài hạn, asyncio.run sẽ quản lý app.run()
         asyncio.run(app.run())
     except KeyboardInterrupt:
-        logging.info("Hệ thống đã dừng.")
+        logging.info("Hệ thống đã dừng thủ công.")
+        # Dừng bot gọn gàng
+        try: asyncio.run(app.bot_handler.stop_bot())
+        except: pass

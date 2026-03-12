@@ -90,7 +90,9 @@ class TelegramBotHandler:
         logging.info("Khởi động Telegram Bot Polling...")
         await self.app.initialize()
         await self.app.start()
-        await self.app.updater.start_polling()
+        # drop_pending_updates=True giúp bot không đọc lại tin nhắn cũ bị dồn lại khi tắt bot, từ đó phản hồi lệnh mới ngay lập tức
+        # read_timeout thấp giúp phát hiện mất mạng nhanh hơn
+        await self.app.updater.start_polling(drop_pending_updates=True, read_timeout=10, write_timeout=10)
 
     async def stop_bot(self):
         await self.app.updater.stop()

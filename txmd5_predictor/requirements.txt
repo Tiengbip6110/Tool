@@ -1,7 +1,5 @@
 requests
 aiohttp
-numpy
-scikit-learn
 python-dotenv
 python-telegram-bot
 google-genai
