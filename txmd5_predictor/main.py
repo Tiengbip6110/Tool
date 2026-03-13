@@ -263,11 +263,15 @@ class MainApp:
     async def run(self):
         logging.info("Bắt đầu khởi chạy hệ thống...")
 
-        # Vòng lặp tái khởi động Bot + Loop chính nếu có lỗi nghiêm trọng crash luồng
+        # Cố gắng khởi động Bot (chỉ chạy 1 lần ở vòng lặp ngoài)
+        try:
+             await self.bot_handler.start_bot()
+        except Exception as e:
+             logging.error(f"Khởi động Bot thất bại hoặc đã chạy: {e}")
+
+        # Vòng lặp tái khởi động Loop chính nếu có lỗi nghiêm trọng crash luồng
         while True:
             try:
-                # Khởi động Telegram Bot (chạy nền)
-                await self.bot_handler.start_bot()
 
                 # Gửi tin nhắn khởi động
                 await self.bot_handler.send_message("🚀 *Khởi động Server thành công!* Gõ `/help` để xem menu điều khiển.")

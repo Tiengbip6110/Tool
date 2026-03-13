@@ -31,7 +31,16 @@ class TelegramBotHandler:
         self.app.add_handler(CommandHandler("stoppredicting", self.stop_predicting_command))
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if str(update.message.chat_id) != self.chat_id: return
+        current_chat_id = str(update.message.chat_id)
+        if current_chat_id != self.chat_id:
+             await context.bot.send_message(
+                 chat_id=current_chat_id,
+                 text=f"⛔ Bạn không có quyền sử dụng Bot này.\n\n"
+                      f"Nếu bạn là Admin, hãy copy dãy số này: `{current_chat_id}`\n"
+                      f"và dán vào file `.env` ở mục `TELEGRAM_CHAT_ID=` rồi khởi động lại code.",
+                 parse_mode="Markdown"
+             )
+             return
 
         help_text = (
             "🤖 *TXMD5 AI Predictor Bot - Menu Lệnh* 🤖\n\n"
@@ -45,7 +54,17 @@ class TelegramBotHandler:
         await context.bot.send_message(chat_id=self.chat_id, text=help_text, parse_mode="Markdown")
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if str(update.message.chat_id) != self.chat_id: return
+        current_chat_id = str(update.message.chat_id)
+        if current_chat_id != self.chat_id:
+             await context.bot.send_message(
+                 chat_id=current_chat_id,
+                 text=f"⛔ Quyền truy cập bị từ chối.\n"
+                      f"Chat ID thực tế của bạn là: `{current_chat_id}`\n"
+                      f"Hãy điền vào `.env` để Bot nhận dạng bạn.",
+                 parse_mode="Markdown"
+             )
+             return
+
         self.is_collecting = True
         await context.bot.send_message(chat_id=self.chat_id, text="✅ Hệ thống *ĐÃ BẮT ĐẦU* thu thập dữ liệu và phân tích AI liên tục.", parse_mode="Markdown")
 
@@ -86,15 +105,33 @@ class TelegramBotHandler:
              logging.error(f"Lỗi gửi tin nhắn Telegram: {e}")
 
     async def start_bot(self):
-        """Khởi chạy Bot Polling trong background"""
+        """Khởi chạy Bot Polling trong background và cài đặt Menu"""
         logging.info("Khởi động Telegram Bot Polling...")
         await self.app.initialize()
         await self.app.start()
+
+        # Thiết lập danh sách các lệnh (Menu 3 gạch xanh)
+        from telegram import BotCommand
+        commands = [
+            BotCommand("help", "Hiện danh sách menu lệnh"),
+            BotCommand("start", "Bắt đầu thu thập dữ liệu"),
+            BotCommand("stop", "Dừng thu thập dữ liệu"),
+            BotCommand("report", "Báo cáo thống kê, tỷ lệ % và thông số"),
+            BotCommand("startpredicting", "Bật tự động gửi dự đoán"),
+            BotCommand("stoppredicting", "Tắt tự động gửi dự đoán")
+        ]
+        try:
+            await self.app.bot.set_my_commands(commands)
+            logging.info("Đã thiết lập Menu Lệnh (Bot Commands) thành công.")
+        except Exception as e:
+            logging.error(f"Không thể thiết lập Menu lệnh: {e}")
+
         # drop_pending_updates=True giúp bot không đọc lại tin nhắn cũ bị dồn lại khi tắt bot, từ đó phản hồi lệnh mới ngay lập tức
-        # read_timeout thấp giúp phát hiện mất mạng nhanh hơn
-        await self.app.updater.start_polling(drop_pending_updates=True, read_timeout=10, write_timeout=10)
+        if not self.app.updater.running:
+             await self.app.updater.start_polling(drop_pending_updates=True)
 
     async def stop_bot(self):
-        await self.app.updater.stop()
+        if self.app.updater and self.app.updater.running:
+             await self.app.updater.stop()
         await self.app.stop()
         await self.app.shutdown()
