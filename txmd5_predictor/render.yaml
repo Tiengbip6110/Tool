@@ -1,0 +1,7 @@
+services:
+  - type: worker
+    name: txmd5-predictor
+    env: docker
+    plan: free
+    dockerCommand: python main.py
+    rootDir: txmd5_predictor
