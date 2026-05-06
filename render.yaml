@@ -1,0 +1,21 @@
+services:
+  - type: worker
+    name: txmd5-ai-predictor
+    env: python
+    buildCommand: pip install -r txmd5_predictor/requirements.txt
+    startCommand: cd txmd5_predictor && python main.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GROK_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
