@@ -1,0 +1,6 @@
+services:
+  - type: worker
+    name: txmd5_predictor
+    env: docker
+    dockerfilePath: ./txmd5_predictor/Dockerfile
+    dockerContext: ./txmd5_predictor
