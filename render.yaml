@@ -1,0 +1,6 @@
+services:
+  - type: worker
+    name: txmd5_predictor
+    env: python
+    buildCommand: pip install -r txmd5_predictor/requirements.txt
+    startCommand: cd txmd5_predictor && python main.py
