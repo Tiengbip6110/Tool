@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: txmd5-predictor
+    env: python
+    rootDir: txmd5_predictor
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        value: "8308036418"
