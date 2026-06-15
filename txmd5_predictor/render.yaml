@@ -1,0 +1,17 @@
+services:
+  - type: worker
+    name: txmd5-predictor
+    env: python
+    buildCommand: "pip install -r txmd5_predictor/requirements.txt"
+    startCommand: "cd txmd5_predictor && python main.py"
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        value: "8308036418"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
