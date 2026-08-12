@@ -1,0 +1,1 @@
+worker: python txmd5_predictor/main.py
